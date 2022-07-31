@@ -34,6 +34,7 @@ int main(){
         perror("Listen fail:");
         exit(EXIT_FAILURE);
     }
+    
     // do somethings to handle multiClient connecting 
     fd_set readfds;
     int max_sd;
@@ -106,6 +107,10 @@ int main(){
                     close(sock_connection);
                     client_socket[i] = 0;
                 }else{
+                    fstream log_file("log.txt",ios::ate|ios::out);
+                    recv_msg = buf;
+                    log_file << recv_msg.substr(0,val_read);
+                    log_file.close();
                     for(int i=0; i<MAX_CLIENT; i++){
                         send(client_socket[i], buf, val_read,0);
                     }
