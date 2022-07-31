@@ -4,6 +4,7 @@
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <time.h>
 
 
 #define PORT 8080
@@ -30,9 +31,77 @@ int main(){
         exit(EXIT_FAILURE);
     }
     // do somethings to handle multiClient connecting 
+    fd_set readfds;
+    int max_sd;
+    int client_socket[MAX_CLIENT];
+    int activity;
+    int sd;
+
+    while(true){
+        FD_ZERO(&readfds);
+        FD_SET(sock_listen, &readfds);
+        max_sd = sock_listen;
+
+        for( int i=0; i < MAX_CLIENT; i++)
+        {
+            sd = client_socket[i];
+            if(sd > 0){
+                FD_SET(sd, &readfds);
+            }
+
+            if(sd > max_sd){
+                max_sd = sd;
+            }
+        }
+
+        activity = select(max_sd + 1, &readfds, NULL, NULL, NULL);
+
+        if((activity < 0) && (errno != EINTR)){
+            perror("select eror");
+        }
+
+        // incomming client connect handle
+        if(FD_ISSET(sock_listen, &readfds)){
+            if(sock_connection = accept(sock_listen,(sockaddr*)&server_addr, 
+                                        (socklen_t*)sizeof(server_addr)) < 0)
+            {
+                perror("acept error:");
+                exit(EXIT_FAILURE);
+            }else{
+                send(sock_connection, "wellcome to the server",22,0);
+                // add new socket to the socket list
+                for(int i=0; i < MAX_CLIENT; i++){
+                    //if possition is empty
+                    if(client_socket[i] == 0){
+                        client_socket[i] = sock_connection;
+                        cout << "added new client to the client list" << endl;
+                    }
+                }
+
+            }
+        }
+        //else it will be other client contact
+        for(int i=0; i < MAX_CLIENT; i++){
+            int val_read;
+            char buf[1024];
+            string recv_msg;
+            sock_connection = client_socket[i];
+
+            if(FD_ISSET(sock_connection, &readfds)){
+                if((val_read = read(sock_connection, buf, 1024)) == 0){
+                    cout << "some body is disconnected" << endl;
+                    close(sock_connection);
+                    client_socket[i] = 0;
+                }else{
+                    send(sock_connection, buf, val_read,0);
+                }
+            }
+        }
+        
+    }
 
     // end proccess
-    
+
     //shut down the server
     close(sock_connection);
     shutdown(sock_listen,SHUT_RDWR);
