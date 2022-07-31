@@ -5,23 +5,27 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <time.h>
+#include <fstream>
 
 
 #define PORT 8080
 #define MAX_CLIENT 10
+// #define ADDRESS "127.0.0.2"
 
 using namespace std;
 
 int main(){
     int sock_listen;
     int sock_connection;
+    int opt = 1;
     sockaddr_in server_addr;
 
     server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(PORT);
 
     sock_listen = socket(AF_INET,SOCK_STREAM,0);
+
     if(bind(sock_listen, (sockaddr*)&server_addr, sizeof(server_addr)) < 0){
         perror("bind error:");
         exit(EXIT_FAILURE);
@@ -36,6 +40,8 @@ int main(){
     int client_socket[MAX_CLIENT];
     int activity;
     int sd;
+    string data; // 
+
 
     while(true){
         FD_ZERO(&readfds);
@@ -58,9 +64,10 @@ int main(){
 
         if((activity < 0) && (errno != EINTR)){
             perror("select eror");
+            exit(EXIT_FAILURE);
         }
 
-        // incomming client connect handle
+        // new client connect handle
         if(FD_ISSET(sock_listen, &readfds)){
             if(sock_connection = accept(sock_listen,(sockaddr*)&server_addr, 
                                         (socklen_t*)sizeof(server_addr)) < 0)
@@ -68,19 +75,25 @@ int main(){
                 perror("acept error:");
                 exit(EXIT_FAILURE);
             }else{
-                send(sock_connection, "wellcome to the server",22,0);
+                // load chat history
+                fstream load_history("log.txt");
+                while(!load_history.eof()){
+                    getline(load_history,data);
+                    send(sock_connection, data.c_str(), data.length(),0);
+                }
+                load_history.close();
                 // add new socket to the socket list
                 for(int i=0; i < MAX_CLIENT; i++){
                     //if possition is empty
                     if(client_socket[i] == 0){
                         client_socket[i] = sock_connection;
-                        cout << "added new client to the client list" << endl;
+                        // cout << "added new client to the client list" << endl; 
                     }
                 }
 
             }
         }
-        //else it will be other client contact
+        //if other client contact
         for(int i=0; i < MAX_CLIENT; i++){
             int val_read;
             char buf[1024];
@@ -89,11 +102,13 @@ int main(){
 
             if(FD_ISSET(sock_connection, &readfds)){
                 if((val_read = read(sock_connection, buf, 1024)) == 0){
-                    cout << "some body is disconnected" << endl;
+                    // client disconnected
                     close(sock_connection);
                     client_socket[i] = 0;
                 }else{
-                    send(sock_connection, buf, val_read,0);
+                    for(int i=0; i<MAX_CLIENT; i++){
+                        send(client_socket[i], buf, val_read,0);
+                    }
                 }
             }
         }
@@ -105,5 +120,6 @@ int main(){
     //shut down the server
     close(sock_connection);
     shutdown(sock_listen,SHUT_RDWR);
+
     return 1;
 }
