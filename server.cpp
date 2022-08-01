@@ -9,7 +9,7 @@
 #include <thread>
 
 
-#define PORT 8005
+#define PORT 8000
 #define MAX_CLIENT 10
 #define ADDRESS "127.0.0.4"
 
@@ -84,9 +84,8 @@ int main(){
                 perror("acept error:");
                 exit(EXIT_FAILURE);
             }else{
-                // cout << "acepted new client" << endl;
+                cout << "acepted new client" << endl;
                 // send(sock_connection,"acpeted",7,0);
-                // load chat history
                 fstream load_history("log.txt");
                 int leter;
                 while(!load_history.eof()){
@@ -115,21 +114,23 @@ int main(){
             if(FD_ISSET(sock_connection, &readfds)){
                 if((val_read = read(sock_connection, buf, 1024)) < 0){
                     // client disconnected
+                    cout << "client disconnected" << endl;
                     close(sock_connection);
                     client_socket[i] = 0;
                 }else{
+                    cout << "client send msg" << endl;
                     fstream log_file("log.txt",ios::app|ios::out);
                     recv_msg = buf;
                     log_file << recv_msg.substr(0,val_read);
                     log_file.close();
-                    for(int i=0; i<MAX_CLIENT; i++){
-                        send(client_socket[i], buf, val_read,0);
-                    }
+                    send(client_socket[i], buf, val_read,0);
+                    cout << "send msg to client " << client_socket[i] << endl;
                 }
             }
         }
-        
     }
+        
+    
 
     // end proccess
 

@@ -4,12 +4,23 @@
 #include <arpa/inet.h>
 #include <string>
 #include <unistd.h>
+#include <thread>
 
-#define PORT 8005
+#define PORT 8000
 #define ADDRESS "127.0.0.4"
+
 
 using namespace std;
 
+void sendMsg(string *client_msg , int socket){
+    while(*client_msg != "exit"){
+        fflush(stdin);
+        cin.clear();
+        getline(cin, *client_msg);
+        send(socket, client_msg->c_str(), client_msg->length(), 0);
+        cout << "passed" << endl;
+    }
+}
 
 int main()
 {
@@ -33,10 +44,12 @@ int main()
         exit(EXIT_FAILURE);
     }
     else{
+        string client_msg = "";
+        thread sendThread(sendMsg, &client_msg ,sockfd);
         char buf[1024];
         string recv_msg;
         int letter_recv;
-        while(1){
+        while(client_msg != "exit"){
             letter_recv = recv(sockfd, buf, 1024,0);
             recv_msg = buf;
             cout << recv_msg.substr(0,letter_recv) << endl;
