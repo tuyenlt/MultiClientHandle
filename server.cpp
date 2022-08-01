@@ -6,11 +6,12 @@
 #include <unistd.h>
 #include <time.h>
 #include <fstream>
+#include <thread>
 
 
-#define PORT 8080
+#define PORT 8005
 #define MAX_CLIENT 10
-// #define ADDRESS "127.0.0.2"
+#define ADDRESS "127.0.0.4"
 
 using namespace std;
 
@@ -19,14 +20,22 @@ int main(){
     int sock_connection;
     int opt = 1;
     sockaddr_in server_addr;
+    int addlen = sizeof(server_addr);
+    
+    sock_listen = socket(AF_INET,SOCK_STREAM,0);
 
+   if( setsockopt(sock_listen, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, 
+          sizeof(opt)) < 0 )  
+    {  
+        perror("setsockopt");  
+        exit(EXIT_FAILURE);  
+    }  
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(PORT);
 
-    sock_listen = socket(AF_INET,SOCK_STREAM,0);
 
-    if(bind(sock_listen, (sockaddr*)&server_addr, sizeof(server_addr)) < 0){
+    if(bind(sock_listen, (sockaddr*)&server_addr, addlen) < 0){
         perror("bind error:");
         exit(EXIT_FAILURE);
     }
@@ -38,11 +47,10 @@ int main(){
     // do somethings to handle multiClient connecting 
     fd_set readfds;
     int max_sd;
-    int client_socket[MAX_CLIENT];
+    int client_socket[MAX_CLIENT] = {0};
     int activity;
     int sd;
     string data; // 
-
 
     while(true){
         FD_ZERO(&readfds);
@@ -70,17 +78,20 @@ int main(){
 
         // new client connect handle
         if(FD_ISSET(sock_listen, &readfds)){
-            if(sock_connection = accept(sock_listen,(sockaddr*)&server_addr, 
-                                        (socklen_t*)sizeof(server_addr)) < 0)
+            if((sock_connection = accept(sock_listen,(sockaddr*)&server_addr, 
+                                        (socklen_t*)&addlen)) < 0)
             {
                 perror("acept error:");
                 exit(EXIT_FAILURE);
             }else{
+                // cout << "acepted new client" << endl;
+                // send(sock_connection,"acpeted",7,0);
                 // load chat history
                 fstream load_history("log.txt");
+                int leter;
                 while(!load_history.eof()){
                     getline(load_history,data);
-                    send(sock_connection, data.c_str(), data.length(),0);
+                    leter = send(sock_connection, data.c_str(), data.length(),0);
                 }
                 load_history.close();
                 // add new socket to the socket list
@@ -102,12 +113,12 @@ int main(){
             sock_connection = client_socket[i];
 
             if(FD_ISSET(sock_connection, &readfds)){
-                if((val_read = read(sock_connection, buf, 1024)) == 0){
+                if((val_read = read(sock_connection, buf, 1024)) < 0){
                     // client disconnected
                     close(sock_connection);
                     client_socket[i] = 0;
                 }else{
-                    fstream log_file("log.txt",ios::ate|ios::out);
+                    fstream log_file("log.txt",ios::app|ios::out);
                     recv_msg = buf;
                     log_file << recv_msg.substr(0,val_read);
                     log_file.close();
